@@ -1,12 +1,155 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import Icon from "@/components/ui/icon";
 
 const Index = () => {
+  const [activeTab, setActiveTab] = useState("home");
+  
+  const balance = 2453.67;
+  const tonPrice = 2.34;
+  
+  const transactions = [
+    { id: 1, type: "received", amount: 125.5, date: "2024-10-03", status: "completed", from: "UQA...3x2k" },
+    { id: 2, type: "sent", amount: 50.0, date: "2024-10-02", status: "completed", to: "UQB...7y9m" },
+    { id: 3, type: "received", amount: 300.0, date: "2024-10-01", status: "pending", from: "UQC...1a4n" },
+    { id: 4, type: "sent", amount: 75.25, date: "2024-09-30", status: "completed", to: "UQD...8k2p" },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 color-black text-black">Добро пожаловать!</h1>
-        <p className="text-xl text-gray-600">тут будет отображаться ваш проект</p>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="max-w-md mx-auto pb-20">
+        <div className="gradient-ton p-8 rounded-b-3xl animate-fade-in">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-2xl font-bold">TON Wallet</h1>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+              <Icon name="Settings" size={24} />
+            </Button>
+          </div>
+          
+          <div className="text-center">
+            <p className="text-sm text-white/80 mb-2">Общий баланс</p>
+            <h2 className="text-5xl font-bold mb-2">{balance.toFixed(2)} TON</h2>
+            <p className="text-white/90">≈ ${(balance * tonPrice).toLocaleString()}</p>
+          </div>
+
+          <div className="flex gap-3 mt-8">
+            <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+              <Icon name="ArrowUpRight" size={20} className="mr-2" />
+              Отправить
+            </Button>
+            <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+              <Icon name="ArrowDownLeft" size={20} className="mr-2" />
+              Получить
+            </Button>
+          </div>
+        </div>
+
+        <div className="px-4 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Последние транзакции</h3>
+            <Button variant="ghost" size="sm" className="text-primary">
+              Все
+              <Icon name="ChevronRight" size={16} className="ml-1" />
+            </Button>
+          </div>
+
+          <div className="space-y-3 animate-scale-in">
+            {transactions.map((tx) => (
+              <Card key={tx.id} className="p-4 gradient-card border-border/50 hover:border-primary/50 transition-all cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      tx.type === "received" 
+                        ? "bg-green-500/20 text-green-500" 
+                        : "bg-primary/20 text-primary"
+                    }`}>
+                      <Icon 
+                        name={tx.type === "received" ? "ArrowDownLeft" : "ArrowUpRight"} 
+                        size={20} 
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium">
+                        {tx.type === "received" ? "Получено" : "Отправлено"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {tx.type === "received" ? tx.from : tx.to}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold ${
+                      tx.type === "received" ? "text-green-500" : "text-foreground"
+                    }`}>
+                      {tx.type === "received" ? "+" : "-"}{tx.amount} TON
+                    </p>
+                    <Badge 
+                      variant={tx.status === "completed" ? "default" : "secondary"}
+                      className="mt-1"
+                    >
+                      {tx.status === "completed" ? "Завершено" : "В обработке"}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
+        <div className="max-w-md mx-auto flex items-center justify-around py-4 px-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex flex-col items-center gap-1 ${
+              activeTab === "home" ? "text-primary" : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("home")}
+          >
+            <Icon name="Home" size={24} />
+            <span className="text-xs">Главная</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex flex-col items-center gap-1 ${
+              activeTab === "wallet" ? "text-primary" : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("wallet")}
+          >
+            <Icon name="Wallet" size={24} />
+            <span className="text-xs">Кошелек</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex flex-col items-center gap-1 ${
+              activeTab === "transactions" ? "text-primary" : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("transactions")}
+          >
+            <Icon name="ArrowLeftRight" size={24} />
+            <span className="text-xs">Транзакции</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`flex flex-col items-center gap-1 ${
+              activeTab === "settings" ? "text-primary" : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("settings")}
+          >
+            <Icon name="Settings" size={24} />
+            <span className="text-xs">Настройки</span>
+          </Button>
+        </div>
+      </nav>
     </div>
   );
 };
