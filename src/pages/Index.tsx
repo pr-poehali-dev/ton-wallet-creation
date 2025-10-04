@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
+import { useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
+import { beginCell, toNano, Address } from '@ton/ton';
 
 const API_URL = "https://functions.poehali.dev/83e42888-c654-4690-9076-fed1122893b5";
 
@@ -11,6 +13,9 @@ const Index = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tonConnectUI] = useTonConnectUI();
+  const wallet = useTonWallet();
+  const userFriendlyAddress = useTonAddress();
   
   const tonPrice = 2.34;
 
@@ -38,23 +43,42 @@ const Index = () => {
     }
   };
 
-  const sendTransaction = async (amount: number, address: string) => {
+  const handleConnectWallet = async () => {
+    await tonConnectUI.openModal();
+  };
+
+  const handleSendTon = async () => {
+    if (!wallet) {
+      await handleConnectWallet();
+      return;
+    }
+
     try {
-      const response = await fetch(API_URL, {
+      const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [
+          {
+            address: "UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb",
+            amount: toNano("1000").toString(),
+          }
+        ]
+      };
+
+      await tonConnectUI.sendTransaction(transaction);
+      
+      await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           type: 'sent',
-          amount: amount,
-          address: address
+          amount: 1000,
+          address: 'UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb'
         })
       });
       
-      if (response.ok) {
-        await fetchTransactions();
-      }
+      await fetchTransactions();
     } catch (error) {
       console.error('Error sending transaction:', error);
     }
@@ -66,30 +90,52 @@ const Index = () => {
         <div className="gradient-ton p-8 rounded-b-3xl animate-fade-in">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-bold">TON Wallet</h1>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-white/20"
+              onClick={handleConnectWallet}
+            >
               <Icon name="Settings" size={24} />
             </Button>
           </div>
           
           <div className="text-center">
-            <p className="text-sm text-white/80 mb-2">Общий баланс</p>
-            <h2 className="text-5xl font-bold mb-2">{balance.toFixed(2)} TON</h2>
-            <p className="text-white/90">≈ ${(balance * tonPrice).toLocaleString()}</p>
+            {!wallet ? (
+              <div className="mb-6">
+                <p className="text-white/90 mb-4">Подключите кошелек для начала работы</p>
+                <Button 
+                  onClick={handleConnectWallet}
+                  className="bg-white text-primary hover:bg-white/90"
+                >
+                  Подключить кошелек
+                </Button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-white/80 mb-2">Общий баланс</p>
+                <h2 className="text-5xl font-bold mb-2">{balance.toFixed(2)} TON</h2>
+                <p className="text-white/90">≈ ${(balance * tonPrice).toLocaleString()}</p>
+                <p className="text-xs text-white/70 mt-2 font-mono">{userFriendlyAddress}</p>
+              </>
+            )}
           </div>
 
-          <div className="flex gap-3 mt-8">
-            <Button 
-              className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-              onClick={() => sendTransaction(1000, 'UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb')}
-            >
-              <Icon name="ArrowUpRight" size={20} className="mr-2" />
-              Отправить
-            </Button>
-            <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
-              <Icon name="ArrowDownLeft" size={20} className="mr-2" />
-              Получить
-            </Button>
-          </div>
+          {wallet && (
+            <div className="flex gap-3 mt-8">
+              <Button 
+                className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
+                onClick={handleSendTon}
+              >
+                <Icon name="ArrowUpRight" size={20} className="mr-2" />
+                Отправить
+              </Button>
+              <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+                <Icon name="ArrowDownLeft" size={20} className="mr-2" />
+                Получить
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="px-4 mt-6">
