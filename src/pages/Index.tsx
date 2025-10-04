@@ -38,6 +38,28 @@ const Index = () => {
     }
   };
 
+  const sendTransaction = async (amount: number, address: string) => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: 'sent',
+          amount: amount,
+          address: address
+        })
+      });
+      
+      if (response.ok) {
+        await fetchTransactions();
+      }
+    } catch (error) {
+      console.error('Error sending transaction:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-md mx-auto pb-20">
@@ -56,7 +78,10 @@ const Index = () => {
           </div>
 
           <div className="flex gap-3 mt-8">
-            <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+            <Button 
+              className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
+              onClick={() => sendTransaction(1000, 'UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb')}
+            >
               <Icon name="ArrowUpRight" size={20} className="mr-2" />
               Отправить
             </Button>
