@@ -1,21 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Icon from "@/components/ui/icon";
 
+const API_URL = "https://functions.poehali.dev/83e42888-c654-4690-9076-fed1122893b5";
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  const balance = 2453.67;
   const tonPrice = 2.34;
-  
-  const transactions = [
-    { id: 1, type: "received", amount: 125.5, date: "2024-10-03", status: "completed", from: "UQA...3x2k" },
-    { id: 2, type: "sent", amount: 50.0, date: "2024-10-02", status: "completed", to: "UQB...7y9m" },
-    { id: 3, type: "received", amount: 300.0, date: "2024-10-01", status: "pending", from: "UQC...1a4n" },
-    { id: 4, type: "sent", amount: 75.25, date: "2024-09-30", status: "completed", to: "UQD...8k2p" },
-  ];
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setBalance(data.balance);
+      setTransactions(data.transactions.map(tx => ({
+        id: tx.id,
+        type: tx.transaction_type,
+        amount: parseFloat(tx.amount),
+        status: tx.status,
+        address: tx.address,
+        date: new Date(tx.created_at).toLocaleDateString()
+      })));
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -56,7 +77,12 @@ const Index = () => {
           </div>
 
           <div className="space-y-3 animate-scale-in">
-            {transactions.map((tx) => (
+            {loading ? (
+              <p className="text-center text-muted-foreground">Загрузка...</p>
+            ) : transactions.length === 0 ? (
+              <p className="text-center text-muted-foreground">Нет транзакций</p>
+            ) : (
+              transactions.map((tx) => (
               <Card key={tx.id} className="p-4 gradient-card border-border/50 hover:border-primary/50 transition-all cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -75,7 +101,7 @@ const Index = () => {
                         {tx.type === "received" ? "Получено" : "Отправлено"}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {tx.type === "received" ? tx.from : tx.to}
+                        {tx.address}
                       </p>
                     </div>
                   </div>
@@ -94,7 +120,8 @@ const Index = () => {
                   </div>
                 </div>
               </Card>
-            ))}
+            ))
+            )}
           </div>
         </div>
       </div>

@@ -1,0 +1,23 @@
+{
+  "tests": [
+    {
+      "name": "Get all transactions",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new transaction",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "type": "sent",
+        "amount": 10.5,
+        "address": "UQTest...123"
+      },
+      "expectedStatus": 201,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
