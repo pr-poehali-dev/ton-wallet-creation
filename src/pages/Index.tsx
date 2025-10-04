@@ -7,7 +7,10 @@ import Icon from "@/components/ui/icon";
 import TonWeb from "tonweb";
 import { Buffer } from "buffer";
 
-window.Buffer = Buffer;
+if (typeof window !== 'undefined') {
+  window.Buffer = Buffer;
+  (window as any).global = window;
+}
 
 const API_URL = "https://functions.poehali.dev/83e42888-c654-4690-9076-fed1122893b5";
 
