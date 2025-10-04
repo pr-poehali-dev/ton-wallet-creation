@@ -2,15 +2,9 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import Icon from "@/components/ui/icon";
-import TonWeb from "tonweb";
-import { Buffer } from "buffer";
-
-if (typeof window !== 'undefined') {
-  window.Buffer = Buffer;
-  (window as any).global = window;
-}
+import { useTonConnectUI, useTonWallet, useTonAddress } from '@tonconnect/ui-react';
+import { toNano } from '@ton/ton';
 
 const API_URL = "https://functions.poehali.dev/83e42888-c654-4690-9076-fed1122893b5";
 
@@ -19,72 +13,21 @@ const Index = () => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [wallet, setWallet] = useState(null);
-  const [mnemonic, setMnemonic] = useState([]);
-  const [walletAddress, setWalletAddress] = useState("");
-  const [showMnemonic, setShowMnemonic] = useState(false);
-  const [recipientAddress, setRecipientAddress] = useState("UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb");
-  const [sendAmount, setSendAmount] = useState("1000");
+  const [tonConnectUI] = useTonConnectUI();
+  const wallet = useTonWallet();
+  const userFriendlyAddress = useTonAddress();
   
   const tonPrice = 2.34;
-  const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
 
   useEffect(() => {
     fetchTransactions();
-    loadOrCreateWallet();
   }, []);
-
-  const loadOrCreateWallet = async () => {
-    const savedMnemonic = localStorage.getItem('ton_wallet_mnemonic');
-    
-    if (savedMnemonic) {
-      const mnemonicArray = JSON.parse(savedMnemonic);
-      await restoreWallet(mnemonicArray);
-    }
-  };
-
-  const createNewWallet = async () => {
-    const mnemonicArray = await TonWeb.mnemonic.generateMnemonic();
-    setMnemonic(mnemonicArray);
-    setShowMnemonic(true);
-    
-    localStorage.setItem('ton_wallet_mnemonic', JSON.stringify(mnemonicArray));
-    
-    await restoreWallet(mnemonicArray);
-  };
-
-  const restoreWallet = async (mnemonicArray) => {
-    const keyPair = await TonWeb.mnemonic.mnemonicToKeyPair(mnemonicArray);
-    
-    const WalletClass = tonweb.wallet.all.v4R2;
-    const walletInstance = new WalletClass(tonweb.provider, {
-      publicKey: keyPair.publicKey
-    });
-    
-    const address = await walletInstance.getAddress();
-    const addressString = address.toString(true, true, true);
-    
-    setWallet({ instance: walletInstance, keyPair });
-    setWalletAddress(addressString);
-    setMnemonic(mnemonicArray);
-    
-    await updateBalance(addressString);
-  };
-
-  const updateBalance = async (address) => {
-    try {
-      const balanceNano = await tonweb.getBalance(address);
-      const balanceTon = parseFloat(TonWeb.utils.fromNano(balanceNano));
-      setBalance(balanceTon);
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-    }
-  };
 
   const fetchTransactions = async () => {
     try {
       const response = await fetch(API_URL);
       const data = await response.json();
+      setBalance(data.balance);
       setTransactions(data.transactions.map(tx => ({
         id: tx.id,
         type: tx.transaction_type,
@@ -100,27 +43,28 @@ const Index = () => {
     }
   };
 
-  const sendTon = async () => {
-    if (!wallet || !recipientAddress || !sendAmount) {
-      alert('Заполните все поля');
+  const handleConnectWallet = async () => {
+    await tonConnectUI.openModal();
+  };
+
+  const handleSendTon = async () => {
+    if (!wallet) {
+      await handleConnectWallet();
       return;
     }
 
     try {
-      const amount = TonWeb.utils.toNano(sendAmount);
-      
-      const seqno = await wallet.instance.methods.seqno().call();
-      
-      const transfer = wallet.instance.methods.transfer({
-        secretKey: wallet.keyPair.secretKey,
-        toAddress: recipientAddress,
-        amount: amount,
-        seqno: seqno || 0,
-        payload: '',
-        sendMode: 3,
-      });
+      const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [
+          {
+            address: "UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb",
+            amount: toNano("0.1").toString(),
+          }
+        ]
+      };
 
-      await transfer.send();
+      await tonConnectUI.sendTransaction(transaction);
       
       await fetch(API_URL, {
         method: 'POST',
@@ -129,18 +73,14 @@ const Index = () => {
         },
         body: JSON.stringify({
           type: 'sent',
-          amount: parseFloat(sendAmount),
-          address: recipientAddress
+          amount: 0.1,
+          address: 'UQDnuKfcBFbPfcUm63GjmeMRmT9b7JcVhjwVik-YHCrmMQsb'
         })
       });
       
-      alert('Транзакция отправлена!');
-      await updateBalance(walletAddress);
       await fetchTransactions();
-      
     } catch (error) {
       console.error('Error sending transaction:', error);
-      alert('Ошибка отправки: ' + error.message);
     }
   };
 
@@ -154,7 +94,7 @@ const Index = () => {
               variant="ghost" 
               size="icon" 
               className="text-white hover:bg-white/20"
-              onClick={() => setShowMnemonic(!showMnemonic)}
+              onClick={handleConnectWallet}
             >
               <Icon name="Settings" size={24} />
             </Button>
@@ -163,80 +103,44 @@ const Index = () => {
           <div className="text-center">
             {!wallet ? (
               <div className="mb-6">
-                <p className="text-white/90 mb-4">Создайте новый кошелек</p>
+                <p className="text-white/90 mb-4">Подключите кошелек для начала работы</p>
                 <Button 
-                  onClick={createNewWallet}
+                  onClick={handleConnectWallet}
                   className="bg-white text-primary hover:bg-white/90"
                 >
-                  Создать кошелек
+                  Подключить кошелек
                 </Button>
               </div>
             ) : (
               <>
-                <p className="text-sm text-white/80 mb-2">Баланс</p>
+                <p className="text-sm text-white/80 mb-2">Общий баланс</p>
                 <h2 className="text-5xl font-bold mb-2">{balance.toFixed(2)} TON</h2>
                 <p className="text-white/90">≈ ${(balance * tonPrice).toLocaleString()}</p>
-                <p className="text-xs text-white/70 mt-2 font-mono break-all px-4">{walletAddress}</p>
+                <p className="text-xs text-white/70 mt-2 font-mono">{userFriendlyAddress}</p>
               </>
             )}
           </div>
 
           {wallet && (
-            <div className="mt-8 space-y-3">
-              <Input
-                type="text"
-                placeholder="Адрес получателя"
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
-                className="bg-white/20 border-white/30 text-white placeholder:text-white/60"
-              />
-              <Input
-                type="number"
-                placeholder="Сумма (TON)"
-                value={sendAmount}
-                onChange={(e) => setSendAmount(e.target.value)}
-                className="bg-white/20 border-white/30 text-white placeholder:text-white/60"
-              />
+            <div className="flex gap-3 mt-8">
               <Button 
-                className="w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-                onClick={sendTon}
+                className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
+                onClick={handleSendTon}
               >
                 <Icon name="ArrowUpRight" size={20} className="mr-2" />
-                Отправить {sendAmount} TON
+                Отправить
+              </Button>
+              <Button className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm">
+                <Icon name="ArrowDownLeft" size={20} className="mr-2" />
+                Получить
               </Button>
             </div>
           )}
         </div>
 
-        {showMnemonic && mnemonic.length > 0 && (
-          <div className="px-4 mt-6">
-            <Card className="p-4 bg-destructive/10 border-destructive/50">
-              <h3 className="text-lg font-semibold mb-2 text-destructive">⚠️ Секретная фраза</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Сохраните эти слова в безопасном месте. Они нужны для восстановления кошелька.
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {mnemonic.map((word, index) => (
-                  <div key={index} className="bg-background p-2 rounded text-sm">
-                    <span className="text-muted-foreground">{index + 1}.</span> {word}
-                  </div>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-3"
-                onClick={() => setShowMnemonic(false)}
-              >
-                Скрыть
-              </Button>
-            </Card>
-          </div>
-        )}
-
         <div className="px-4 mt-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">История транзакций</h3>
+            <h3 className="text-lg font-semibold">Последние транзакции</h3>
             <Button variant="ghost" size="sm" className="text-primary">
               Все
               <Icon name="ChevronRight" size={16} className="ml-1" />
